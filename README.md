@@ -3,6 +3,10 @@
 
 We will implement a novel architecture inspired from existing state-of-the-art methods for automated removal of artifacts due to weather in images. We envision that our algorithm will be used to preprocess images in real-time in order to increase the robustness of object detection & classification for self-driving cars. One of the challenges associated with this project is the acquisition of training dataset. We propose generating synthetic training images by performing realistic simulation and rendering of rain and snow. To test our algorithm, we will use dashcam videos available online.
 
+How to train:
+Download the real_world_rain_dataset_CVPR19 from https://stevewongv.github.io/derain-project.html
+
+python train.py --data 'path/to/real_world.txt'
 
 Relevant Papers:
 

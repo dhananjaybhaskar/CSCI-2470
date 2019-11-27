@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from pathlib import Path
 
 from unet_model import create_unet
-from dataset import synthetic_noise_dataset
+from dataset import synthetic_noise_dataset, RainImageGenerator
 
 
 def tf_log10(x):
@@ -39,10 +39,6 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--data", type=str, required=True,
                         help="data location")
-    parser.add_argument("--image_width", type=int, required=True,
-                        help="dataset image width")
-    parser.add_argument("--image_height", type=int, required=True,
-                        help="dataset image height")
     parser.add_argument("--crop_width", type=int, default=256,
                         help="crop width")
     parser.add_argument("--crop_height", type=int, default=256,
@@ -51,7 +47,7 @@ def get_args():
                         help="batch size")
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
-    parser.add_argument("--epochs", type=float, default=1,
+    parser.add_argument("--epochs", type=int, default=1,
                         help="number of epochs")
     parser.add_argument("--load", type=str, default=None,
                         help="load model weights")
@@ -67,7 +63,7 @@ def main():
     output_path = Path(__file__).resolve().parent.joinpath(args.output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    image_size = (args.image_width, args.image_height)
+    #image_size = (args.image_width, args.image_height)
     crop_size = (args.crop_width, args.crop_height)
 
     
@@ -87,9 +83,9 @@ def main():
     optimizer = tf.keras.optimizers.Adam(learning_rate=args.lr, beta_1=0.9, beta_2=0.99)
     model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[PSNR])
 
-
-    data_dir = Path(__file__).resolve().parent.joinpath(args.data)
-    generator, steps_per_epoch = synthetic_noise_dataset(data_dir, args.batch_size, image_size, crop_size, gaussian_noise, gaussian_noise)
+    #generator, steps_per_epoch = synthetic_noise_dataset(data_dir, args.batch_size, image_size, crop_size, gaussian_noise, gaussian_noise)
+    generator = RainImageGenerator(args.data, Path(args.data).resolve().parent, batch_size=args.batch_size, image_size=256)
+    steps_per_epoch = None
 
     checkpoint = ModelCheckpoint(str(output_path) + "/weights.{loss:.3f}-{PSNR:.5f}.hdf5",
                                  monitor="PSNR",
