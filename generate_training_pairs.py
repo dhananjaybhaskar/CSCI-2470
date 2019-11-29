@@ -1,6 +1,8 @@
 import os
 import re
 from collections import defaultdict
+from PIL import Image 
+
 
 
 def generate_text_file(path_to_files, file_name):
@@ -48,6 +50,34 @@ def generate_text_file(path_to_files, file_name):
 	#close the file
 	txt_file.close()
 
+
+def crop_images(gt, syn, size, output_dir):
+	"""
+	This routine crops and saves given pair of images consisting of gt (desnowed) and syn (snowed) images
+	gt [input]: dir. to ground-truth image (desnowed) of random size 
+	syn [input]: dir. to synthesized image (snowed) of above of the same size
+	size [input]: cropping size of each image
+	output_dir [input]: directory to which cropped images will be written
+	return none
+	"""
+	# open images in rgb mode
+	img_gt, img_syn = Image.open(gt, mode='r'), Image.open(syn, mode='r')
+	# first check if gt and syn are of the same size
+	assert (img_gt.shape == img_syn.shape, 'dimensions of gt and syn images not matching!')
+	# detect origin of each image (center)
+	center_x, center_y = int(im_gt.shape[0]/2.0),int(img_gt.shape[1]/2.0)
+	dx, dy = int(size[0]/2.0), int(size[1]/2.0)
+	# create a 4-tuple for cropping: origin is center in Cartesian move in x-y with dx,dy
+	# convention: left, top, right, bottom
+	(center_x-dx,center_y+dy,center_x+dx,center_y-dy) = crop_box
+	# crop gt and syn
+	img_gt_cropped = img_gt.crop(crop_box)
+	img_syn_cropped = img_syn.crop(crop_box)
+	# save the images
+	img_gt_cropped.save(output_dir+gt, format = img_gt.format)
+	img_syn_cropped.save(output_dir+syn, format = img.syn.format)
+
+	
 
 def main():
     	# specify the absolute path to the 
