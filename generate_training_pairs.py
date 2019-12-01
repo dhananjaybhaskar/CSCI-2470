@@ -41,9 +41,9 @@ def generate_text_file(path_to_files, file_name):
 			# if they are adjacent we have found a pair!
 			if value[i]-value[i-1] ==1:
 				# file name for the pair
-				str2 = '/real_world' + '/' + str(root) + '/' + str(root) + '-' + str(value[i]) + '/' + str(root) +  \
+				str2 = path_to_files + '/' + str(root) + '/' + str(root) + '-' + str(value[i]) + '/' + str(root) +  \
 					'-' + str(value[i]) + '_' + str(x) + '_' + str(y) + '.png'
-				str1 = '/real_world' + '/' + str(root) + '/' + str(root) + '-' + str(value[i-1]) + '/' + str(root) +  \
+				str1 = path_to_files + '/' + str(root) + '/' + str(root) + '-' + str(value[i-1]) + '/' + str(root) +  \
 					'-' + str(value[i-1]) + '_' + str(x) + '_' + str(y) + '.png'
 				txt_file.write("%s \t %s \n" %(str1,str2))
 
@@ -51,7 +51,7 @@ def generate_text_file(path_to_files, file_name):
 	txt_file.close()
 
 
-def crop_images(gt, syn, size, output_dir):
+def crop_images(gt, cropping_size, input_dir, output_dir):
 	"""
 	This routine crops and saves given pair of images consisting of gt (desnowed) and syn (snowed) images
 	gt [input]: dir. to ground-truth image (desnowed) of random size 
@@ -60,36 +60,76 @@ def crop_images(gt, syn, size, output_dir):
 	output_dir [input]: directory to which cropped images will be written
 	return none
 	"""
+	# input directory of gt
+	input_dir_gt = input_dir +'/gt/' + gt
+	input_dir_syn = input_dir + '/synthetic/' + gt
 	# open images in rgb mode
-	img_gt, img_syn = Image.open(gt, mode='r'), Image.open(syn, mode='r')
-	# first check if gt and syn are of the same size
-	assert (img_gt.shape == img_syn.shape, 'dimensions of gt and syn images not matching!')
+	img_gt, img_syn = Image.open(input_dir_gt, mode='r'), Image.open(input_dir_syn, mode='r')
 	# detect origin of each image (center)
-	center_x, center_y = int(im_gt.shape[0]/2.0),int(img_gt.shape[1]/2.0)
-	dx, dy = int(size[0]/2.0), int(size[1]/2.0)
+	center_x, center_y = int(img_gt.size[0]/2.0),int(img_gt.size[1]/2.0)
+	dx, dy = int(cropping_size[0]/2.0), int(cropping_size[1]/2.0)
 	# create a 4-tuple for cropping: origin is center in Cartesian move in x-y with dx,dy
-	# convention: left, top, right, bottom
-	(center_x-dx,center_y+dy,center_x+dx,center_y-dy) = crop_box
+	# convention: x_min, y_min, x_max, y_max
+	crop_box = (center_x-dx,center_y-dy,center_x+dx,center_y+dy)
 	# crop gt and syn
 	img_gt_cropped = img_gt.crop(crop_box)
 	img_syn_cropped = img_syn.crop(crop_box)
 	# save the images
-	img_gt_cropped.save(output_dir+gt, format = img_gt.format)
-	img_syn_cropped.save(output_dir+syn, format = img.syn.format)
+	img_gt_cropped.save(output_dir+'/gt/'+gt, format = img_gt.format)
+	img_syn_cropped.save(output_dir+'/syn/'+gt, format = img_syn.format)
 
+def process_DesnowNet(input_dir, output_dir, file_name, size):
+        """
+        This routine goes over each gt and syn image pairs to crop & and save to the specified dir.
+        input_dir [input]: Input directory of images to be processed
+        output_dir [input]: Output directory of images to which cropped images will be saved
+	size [input]: tuple of dimensions
+        """
+	# input directions for gt and synthetic images
+	# create output dir for gt
+	if not os.path.isdir(output_dir+'/gt'):
+		os.makedirs(output_dir+'/gt')
+	#create output dir for syn
+	if not os.path.isdir(output_dir+'/syn'):
+		os.makedirs(output_dir+'/syn')
+	#open the file
+	txt_file = open(file_name,"w") 
+	# walk over gt images and pair with corresponding synthethic ones
+        for root, dirs, files in os.walk(input_dir+'/gt'):
+		for img_gt in files:
+			# call crop function to "crop" and "save"
+			crop_images(img_gt, size, input_dir, output_dir)
+			img_gt_dir = output_dir+'/gt/'+ img_gt
+			img_syn_dir = output_dir +'/syn/' + img_gt
+			txt_file.write("%s \t %s \n" %(img_gt_dir,img_syn_dir))
+	#close the file
+	txt_file.close()
+		
 	
-
 def main():
-    	# specify the absolute path to the 
+	# SPECIFY the absolute path to the RAIN data
 	path_to_files = '/home/mda/CSCI2470/real_world_rain_dataset_CVPR19/real_world'
-	file_name = 'real_world_noisy_pairs.txt'
+	# SPECIFY the name of TEXT file for RAIN data
+	file_name = '/real_world_noisy_pairs.txt'
+	file_name = path_to_files + file_name
 	# call the generate_text_file routine to create text file for noisy images
 	generate_text_file(path_to_files, file_name)
-
-
-
+	# SPEFICY ABSOLUTE INPUT PATH for DESNOW data - Note that we have 3 sets L-M-S
+	input_dir = '/home/mda/CSCI2470/desnow/media/jdway/GameSSD/overlapping/test/Snow100K-M'
+	# Cropped images and text file be written to input_dir + 'cropped'
+	output_dir = input_dir + '/cropped'
+	# SPECIFY the name of TEXT file for DESNOW data
+	file_name_desnow = '/desnow_pairs.txt'
+	file_name_desnow = output_dir + file_name_desnow
+	# SPECIFY of CROPPING size
+	# tuple of crop dimensions
+	size = (256,256)
+	# call processor function to crop & save images
+	process_DesnowNet(input_dir,output_dir, file_name_desnow, size)
+     
+       
 if __name__ == '__main__':
-    main()
+	main()
 
 
 
