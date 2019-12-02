@@ -54,7 +54,7 @@ def create_unet(
         if (not(skip_start)):
             skip_cons.append(x)
         
-        x = MaxPooling2D((2, 2)) (x)
+        x = MaxPooling2D((2, 2), padding='same') (x)
 
         if (skip_start and l != num_layers - 1):
             skip_cons.append(x)
@@ -80,7 +80,7 @@ def create_unet(
         filter_index += 1
 
     output_dim = filters[filter_index][0]
-    outputs = Conv2D(output_dim, (1, 1)) (x)    
+    outputs = Conv2D(output_dim, (1, 1), padding='same') (x)    
     
     model = Model(inputs=[inputs], outputs=[outputs])
     return model

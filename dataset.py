@@ -48,19 +48,19 @@ def synthetic_noise_dataset(data_dir, batch_size, image_size, crop_size, noise_s
 
     return generator, steps_per_epoch
 
-
-
 class RainImageGenerator(Sequence):
     def __init__(self, path_pair_file, base_dir, batch_size=4, image_size=256):
 
         f = open(path_pair_file, 'r')
         self.image_pair_paths = f.readlines()
         f.close()
+        np.random.shuffle(self.image_pair_paths)
         self.base_dir = str(base_dir)
 
         self.image_num = len(self.image_pair_paths)
         self.batch_size = batch_size
         self.image_size = image_size
+        self.index = 0
 
 
     def __len__(self):
@@ -74,47 +74,45 @@ class RainImageGenerator(Sequence):
         sample_id = 0
 
         while True:
-            image_path_pair = random.choice(self.image_pair_paths)
+            image_path_pair = self.image_pair_paths[self.index]
             image_path_pair = image_path_pair.split()
+            self.index += 1
 
             source_path = str(self.base_dir + image_path_pair[0])
             target_path = str(self.base_dir + image_path_pair[1])
 
-            source = cv2.imread(source_path)
-            target = cv2.imread(target_path)
+            if os.path.isfile(source_path) and os.path.isfile(target_path):
+                source = cv2.imread(source_path)
+                target = cv2.imread(target_path)
 
-            x[sample_id] = source
-            y[sample_id] = target
+                if (source.size != 0 and target.size != 0):
+                    x[sample_id] = source
+                    y[sample_id] = target
+                    sample_id += 1
 
-            if (source.size != 0 and target.size != 0):
-                sample_id += 1
-
-            if sample_id == batch_size:
-                return x, y
+                if sample_id == batch_size:
+                    return x, y
                 
 
-
+# Not used but might improve training speed if fixed
 def load_pair_dataset(path_pair_file, base_dir, batch_size=4, shuffle_buffer_size=250000, n_threads=2):
 
     base_dir = str(base_dir)
 
     def load_and_process_image_pair(path_pair_file):
-
         path_pair = tf.strings.split(path_pair_file).values
 
         source = tf.io.decode_png(path_pair[0], channels=3)
         target = tf.io.decode_png(path_pair[1], channels=3)
         
-        return source, target
+        return [source, target]
 
     # Load dataset                                                                                                                                                                                                                                                                              
     data = np.loadtxt(path_pair_file, dtype=str)
     base_func = lambda x: [base_dir + x[0], base_dir + x[1]]
     data = np.apply_along_axis(base_func, 0, data)
 
-    #f = open(path_pair_file, 'r')
     dataset = tf.data.Dataset.from_tensor_slices(data)
-    #f.close()
 
     # Shuffle order
     #dataset = dataset.shuffle(buffer_size=shuffle_buffer_size)

@@ -7,12 +7,38 @@ import numpy as np
 import argparse
 
 from tensorflow.keras import losses
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, Callback, LearningRateScheduler
 from pathlib import Path
 
 from unet_model import create_unet
 from dataset import synthetic_noise_dataset, RainImageGenerator
 
+
+class WeightsSaver(Callback):
+    def __init__(self, N, output_path):
+        self.N = N
+        self.output_path = output_path
+        self.batch = 0
+
+    def on_batch_end(self, batch, logs={}):
+        if self.batch % self.N == 0:
+            name = self.output_path + '/weights%08d.hdf5' % self.batch
+            self.model.save_weights(name)
+        self.batch += 1
+
+class Schedule:
+    def __init__(self, nb_epochs, initial_lr):
+        self.epochs = nb_epochs
+        self.initial_lr = initial_lr
+
+    def __call__(self, epoch_idx):
+        if epoch_idx < self.epochs * 0.25:
+            return self.initial_lr
+        elif epoch_idx < self.epochs * 0.50:
+            return self.initial_lr * 0.5
+        elif epoch_idx < self.epochs * 0.75:
+            return self.initial_lr * 0.25
+        return self.initial_lr * 0.125
 
 def tf_log10(x):
     numerator = tf.math.log(x)
@@ -87,13 +113,17 @@ def main():
     generator = RainImageGenerator(args.data, Path(args.data).resolve().parent, batch_size=args.batch_size, image_size=256)
     steps_per_epoch = None
 
-    checkpoint = ModelCheckpoint(str(output_path) + "/weights.{loss:.3f}-{PSNR:.5f}.hdf5",
+    #schedule = LearningRateScheduler(schedule=Schedule(args.epochs, args.lr))
+
+    batch_checkpoint = WeightsSaver(1000, str(output_path))
+
+    epoch_checkpoint = ModelCheckpoint(str(output_path) + "/weights.{loss:.3f}-{PSNR:.5f}.hdf5",
                                  monitor="PSNR",
                                  verbose=1,
                                  mode="max",
                                  save_best_only=True)
 
-    callbacks = [checkpoint]
+    callbacks = [batch_checkpoint, epoch_checkpoint]
     history = model.fit_generator(generator=generator,
                                   steps_per_epoch=steps_per_epoch,
                                   epochs=args.epochs,
