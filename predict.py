@@ -22,10 +22,10 @@ def get_args():
 
     parser.add_argument("--data", type=str, required=True,
                         help="input data")
-    parser.add_argument("--gt", type=str, required=True,
-                        help="ground truth")
     parser.add_argument("--load", type=str, required=True,
                         help="load model weights")
+    parser.add_argument("--output", type=str, required=True,
+                        help="result output")
     parser.add_argument("--crop_width", type=int, default=256,
                         help="crop width")
     parser.add_argument("--crop_height", type=int, default=256,
@@ -35,19 +35,6 @@ def get_args():
 
     return args
 
-def tf_log10(x):
-    numerator = tf.math.log(x)
-    denominator = tf.math.log(tf.constant(10, dtype=numerator.dtype))
-    return numerator / denominator
-
-def PSNR(y_true, y_pred):
-    max_pixel = 255.0
-    y_pred = tf.keras.backend.clip(y_pred, 0.0, 255.0)
-    return 10.0 * tf_log10((max_pixel ** 2) / (tf.keras.backend.mean(tf.keras.backend.square(y_pred - y_true))))
-
-def ssim(y_true, y_pred):
-    y_pred = tf.keras.backend.clip(y_pred, 0.0, 255.0)
-    return tf.reduce_mean(tf.image.ssim(y_true, y_pred, 255.0))
 
 def main():
     args = get_args()
@@ -67,8 +54,6 @@ def main():
     if args.load is not None:
         model.load_weights(args.load)
 
-    model.compile(loss='mean_squared_error', metrics=[PSNR, ssim])
-
     # array to maintain all read images from the folder, same as [img,..]
     cv_img = []
 
@@ -76,10 +61,12 @@ def main():
     # folder than contains all the images to be read. All images will be stored in cv_image.
     # put . as --data if images are in the same folder as code.
     data_path = args.data
-    data_path = data_path + "/*.png"
+    data_path = data_path + "/*.png" 
+
+    img_paths = sorted(glob.glob(data_path))
 
     # loop through images in the directory, add to cv_image.
-    for img in sorted(glob.glob(data_path)):
+    for img in img_paths:
         n = cv2.imread(img)
         n = cv2.resize(n, crop_size)
         cv_img.append(n)
@@ -87,22 +74,22 @@ def main():
     # x = np.array([img,])
     x = np.array(cv_img)
 
-
-    gt_img = []
-    gt_path = args.gt
-    gt_path = gt_path + "/*.png"
-
-    # loop through images in the directory, add to cv_image.
-    for img in sorted(glob.glob(gt_path)):
-        n = cv2.imread(img)
-        n = cv2.resize(n, crop_size)
-        gt_img.append(n)
-
-    y = np.array(gt_img)
+    pred = model.predict(x)
 
 
-    results = model.evaluate(x, y)
+    # the argument given as --output should be full path or start with ./path from current folder to the
+    # folder than contains all the images to be read. All images will be stored in cv_image.
+    # put . as --data if images are in the same folder as code.
+    save_path = args.output
 
+    # loop through predictions, and name files with an index Image0, Image1, ...
+    # write them to given path.
+    for i,img in enumerate(pred):
+        path_and_name = save_path + "/" + str(i) + ".png"
+        # cv2.imwrite(args.output, pred[0])
+
+        img = np.clip(img, 0, 255).astype(np.uint8)
+        cv2.imwrite(path_and_name, img)
 
 if __name__ == '__main__':
     main()
